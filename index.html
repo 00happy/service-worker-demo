@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Worker 演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #fdbb2d;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #fdbb2d;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .status-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .card {
+            flex: 1;
+            min-width: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .card h3 {
+            margin-bottom: 15px;
+            color: #fdbb2d;
+        }
+        
+        .status {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .online {
+            color: #4CAF50;
+        }
+        
+        .offline {
+            color: #F44336;
+        }
+        
+        .cached {
+            color: #2196F3;
+        }
+        
+        .demo-content {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        
+        .demo-content h2 {
+            margin-bottom: 15px;
+            color: #fdbb2d;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .feature {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        
+        .feature:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .feature h3 {
+            margin-bottom: 10px;
+            color: #fdbb2d;
+        }
+        
+        .instructions {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        
+        .instructions h2 {
+            margin-bottom: 15px;
+            color: #fdbb2d;
+        }
+        
+        .instructions code {
+            display: block;
+            padding: 10px;
+            background: #222;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        button {
+            background: #fdbb2d;
+            color: #1a2a6c;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px 0;
+            display: inline-block;
+        }
+        
+        button:hover {
+            background: #ffcc44;
+            transform: scale(1.05);
+        }
+        
+        .cache-controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transform: translateX(120%);
+            transition: transform 0.5s ease;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Service Worker 演示</h1>
+            <p class="subtitle">使用Service Worker实现离线访问和资源缓存</p>
+        </header>
+        
+        <div class="status-container">
+            <div class="card">
+                <h3>网络状态</h3>
+                <div id="networkStatus" class="status online">在线</div>
+            </div>
+            
+            <div class="card">
+                <h3>Service Worker</h3>
+                <div id="swStatus" class="status">检查中...</div>
+            </div>
+            
+            <div class="card">
+                <h3>缓存状态</h3>
+                <div id="cacheStatus" class="status">未激活</div>
+            </div>
+        </div>
+        
+        <div class="demo-content">
+            <h2>离线功能演示</h2>
+            <p>此页面使用Service Worker缓存了所有必要资源。您可以尝试以下操作：</p>
+            
+            <div class="cache-controls">
+                <button id="cacheBtn">缓存当前页面</button>
+                <button id="updateBtn">更新缓存</button>
+                <button id="clearBtn">清除缓存</button>
+            </div>
+            
+            <p><strong>测试步骤：</strong></p>
+            <ol>
+                <li>点击"缓存当前页面"按钮缓存资源</li>
+                <li>断开网络连接（关闭Wi-Fi或使用离线模式）</li>
+                <li>刷新页面 - 内容仍然可用</li>
+                <li>重新连接网络</li>
+            </ol>
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <h3>离线访问</h3>
+                <p>即使没有网络连接，用户仍然可以访问您网站的核心内容</p>
+            </div>
+            
+            <div class="feature">
+                <h3>快速加载</h3>
+                <p>缓存的资源直接从本地加载，大幅提升页面加载速度</p>
+            </div>
+            
+            <div class="feature">
+                <h3>后台同步</h3>
+                <p>在网络恢复时自动同步数据，提供无缝体验</p>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h2>实现代码示例</h2>
+            <p>注册Service Worker：</p>
+            <code>
+                if ('serviceWorker' in navigator) {<br>
+                &nbsp;&nbsp;navigator.serviceWorker.register('/sw.js')<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;.then(reg => console.log('SW 已注册'))<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;.catch(err => console.log('SW 注册失败:', err));<br>
+                }
+            </code>
+            
+            <p>Service Worker 文件 (sw.js):</p>
+            <code>
+                const CACHE_NAME = 'my-site-cache-v1';<br>
+                const urlsToCache = [<br>
+                &nbsp;&nbsp;'/',<br>
+                &nbsp;&nbsp;'index.html',<br>
+                &nbsp;&nbsp;'styles.css',<br>
+                &nbsp;&nbsp;'app.js'<br>
+                ];<br><br>
+                
+                self.addEventListener('install', event => {<br>
+                &nbsp;&nbsp;event.waitUntil(<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;caches.open(CACHE_NAME)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.then(cache => cache.addAll(urlsToCache))<br>
+                &nbsp;&nbsp;);<br>
+                });<br><br>
+                
+                self.addEventListener('fetch', event => {<br>
+                &nbsp;&nbsp;event.respondWith(<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;caches.match(event.request)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.then(response => response || fetch(event.request))<br>
+                &nbsp;&nbsp;);<br>
+                });
+            </code>
+        </div>
+        
+        <footer>
+            <p>Service Worker 技术演示 | 普通HTML页面离线功能实现</p>
+        </footer>
+    </div>
+    
+    <div id="notification" class="notification"></div>
+
+    <script>
+        // 注册Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker 注册成功:', registration);
+                    document.getElementById('swStatus').textContent = '已注册';
+                    document.getElementById('swStatus').classList.add('cached');
+                    
+                    // 检查缓存状态
+                    updateCacheStatus();
+                })
+                .catch(error => {
+                    console.log('ServiceWorker 注册失败:', error);
+                    document.getElementById('swStatus').textContent = '注册失败';
+                    document.getElementById('swStatus').classList.add('offline');
+                });
+        } else {
+            document.getElementById('swStatus').textContent = '浏览器不支持';
+            document.getElementById('swStatus').classList.add('offline');
+        }
+        
+        // 更新网络状态
+        function updateNetworkStatus() {
+            const statusElement = document.getElementById('networkStatus');
+            if (navigator.onLine) {
+                statusElement.textContent = '在线';
+                statusElement.className = 'status online';
+            } else {
+                statusElement.textContent = '离线';
+                statusElement.className = 'status offline';
+            }
+        }
+        
+        // 初始化网络状态
+        updateNetworkStatus();
+        
+        // 监听网络变化
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        
+        // 更新缓存状态
+        async function updateCacheStatus() {
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+                    const cacheStatus = document.getElementById('cacheStatus');
+                    
+                    if (cacheNames.length > 0) {
+                        cacheStatus.textContent = `${cacheNames.length} 个缓存`;
+                        cacheStatus.className = 'status cached';
+                    } else {
+                        cacheStatus.textContent = '无缓存';
+                        cacheStatus.className = 'status';
+                    }
+                } catch (error) {
+                    console.error('检查缓存失败:', error);
+                }
+            }
+        }
+        
+        // 显示通知
+        function showNotification(message, isSuccess = true) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 缓存当前页面
+        document.getElementById('cacheBtn').addEventListener('click', async () => {
+            if ('caches' in window) {
+                try {
+                    const cache = await caches.open('page-cache');
+                    await cache.addAll([
+                        window.location.href,
+                        '/service-worker-demo'
+                    ]);
+                    showNotification('页面已成功缓存!');
+                    updateCacheStatus();
+                } catch (error) {
+                    showNotification('缓存失败: ' + error.message, false);
+                }
+            } else {
+                showNotification('浏览器不支持缓存API', false);
+            }
+        });
+        
+        // 清除缓存
+        document.getElementById('clearBtn').addEventListener('click', async () => {
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    showNotification('所有缓存已清除!');
+                    updateCacheStatus();
+                } catch (error) {
+                    showNotification('清除缓存失败: ' + error.message, false);
+                }
+            } else {
+                showNotification('浏览器不支持缓存API', false);
+            }
+        });
+        
+        // 更新缓存
+        document.getElementById('updateBtn').addEventListener('click', async () => {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        registration.update();
+                        showNotification('Service Worker 正在更新...');
+                    }
+                } catch (error) {
+                    showNotification('更新失败: ' + error.message, false);
+                }
+            }
+        });
+        
+        // 模拟离线访问
+        window.addEventListener('load', () => {
+            // 模拟从缓存中加载资源
+            setTimeout(() => {
+                if (Math.random() > 0.5) {
+                    document.getElementById('cacheStatus').textContent = '已缓存关键资源';
+                }
+            }, 1500);
+        });
+    </script>
+</body>
+</html>
