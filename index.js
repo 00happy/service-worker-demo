@@ -1,5 +1,5 @@
 window.onload = function() {
-    document.getElementById("content").innerHTML = "Hello World";
+    document.getElementById("content").innerHTML = "已修改js";
 }
 
 
