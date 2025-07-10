@@ -5,8 +5,7 @@ const CACHE_NAME = 'my-site-cache-v1';
 const urlsToCache = [
     '/',
     'index.html',
-    'styles.css',
-    'app.js'
+    'index.js'
 ];
 
 // 安装Service Worker
